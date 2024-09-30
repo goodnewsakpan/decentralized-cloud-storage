@@ -1,6 +1,5 @@
 ;; decentralized-cloud-storage
 
-
 ;; constants
 (define-constant contract-owner tx-sender)
 (define-constant err-owner-only (err u100))
@@ -121,6 +120,53 @@
       { file-id: file-id }
       (merge file { owner: new-owner })
     )
+    (ok true)
+  )
+)
+
+(define-public (grant-permission (file-id uint) (permission bool) (recipient principal))
+  (let
+    (
+      (file (unwrap! (map-get? files { file-id: file-id }) err-not-found))
+    )
+    ;; Check if file-id is valid (greater than 0 and less than or equal to total-files)
+    (asserts! (and (> file-id u0) (<= file-id (var-get total-files))) err-not-found)
+    
+    ;; Ensure the caller is the file's owner
+    (asserts! (is-eq (get owner file) tx-sender) err-unauthorized)
+    
+    ;; Ensure the recipient is not the same as the owner
+    (asserts! (not (is-eq recipient (get owner file))) err-invalid-recipient)
+    
+    ;; Update the file's permissions
+    (map-set file-permissions
+      { file-id: file-id, user: recipient }
+      { permission: permission }
+    )
+    
+    ;; Return success
+    (ok true)
+  )
+)
+
+(define-public (revoke-permission (file-id uint) (user principal))
+  (let
+    (
+      (file (unwrap! (map-get? files { file-id: file-id }) err-not-found))
+    )
+    ;; Check if file-id is valid
+    (asserts! (and (> file-id u0) (<= file-id (var-get total-files))) err-not-found)
+    
+    ;; Ensure the caller is the file's owner
+    (asserts! (is-eq (get owner file) tx-sender) err-unauthorized)
+    
+    ;; Ensure the user is not the same as the owner
+    (asserts! (not (is-eq user (get owner file))) err-invalid-recipient)
+    
+    ;; Remove the permission
+    (map-delete file-permissions { file-id: file-id, user: user })
+    
+    ;; Return success
     (ok true)
   )
 )
