@@ -30,6 +30,9 @@
 )
 
 ;; private functions
+(define-private (file-exists (file-id uint))
+  (is-some (map-get? files { file-id: file-id }))
+)
 
 (define-private (get-owner-file (file-id int) (owner principal))
   (match (map-get? files { file-id: (to-uint file-id) })
@@ -69,7 +72,33 @@
   )
 )
 
+(define-public (update-file (file-id uint) (new-name (string-ascii 64)) (new-size uint))
+  (let
+    (
+      (file (unwrap! (map-get? files { file-id: file-id }) err-not-found))
+    )
+    (asserts! (file-exists file-id) err-not-found)
+    (asserts! (is-eq (get owner file) tx-sender) err-unauthorized)
+    (asserts! (> (len new-name) u0) err-invalid-name)
+    (asserts! (< (len new-name) u65) err-invalid-name)
+    (asserts! (> new-size u0) err-invalid-size)
+    (asserts! (< new-size u1000000000) err-invalid-size)
+    (map-set files
+      { file-id: file-id }
+      (merge file { name: new-name, size: new-size })
+    )
+    (ok true)
+  )
+)
+
 ;; read-only functions
 (define-read-only (get-total-files)
   (ok (var-get total-files))
+)
+
+(define-read-only (get-file-info (file-id uint))
+  (match (map-get? files { file-id: file-id })
+    file-info (ok file-info)
+    err-not-found
+  )
 )
