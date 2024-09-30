@@ -1,5 +1,5 @@
 ;; decentralized-cloud-storage
-;; <add a description here>
+
 
 ;; constants
 (define-constant contract-owner tx-sender)
@@ -41,6 +41,13 @@
   )
 )
 
+(define-private (get-file-size-by-owner (file-id int))
+  (default-to u0 
+    (get size 
+      (map-get? files { file-id: (to-uint file-id) })
+    )
+  )
+)
 
 ;; public functions
 (define-public (upload-file (name (string-ascii 64)) (size uint))
@@ -86,6 +93,33 @@
     (map-set files
       { file-id: file-id }
       (merge file { name: new-name, size: new-size })
+    )
+    (ok true)
+  )
+)
+
+(define-public (delete-file (file-id uint))
+  (let
+    (
+      (file (unwrap! (map-get? files { file-id: file-id }) err-not-found))
+    )
+    (asserts! (file-exists file-id) err-not-found)
+    (asserts! (is-eq (get owner file) tx-sender) err-unauthorized)
+    (map-delete files { file-id: file-id })
+    (ok true)
+  )
+)
+
+(define-public (transfer-file-ownership (file-id uint) (new-owner principal))
+  (let
+    (
+      (file (unwrap! (map-get? files { file-id: file-id }) err-not-found))
+    )
+    (asserts! (file-exists file-id) err-not-found)
+    (asserts! (is-eq (get owner file) tx-sender) err-unauthorized)
+    (map-set files
+      { file-id: file-id }
+      (merge file { owner: new-owner })
     )
     (ok true)
   )
